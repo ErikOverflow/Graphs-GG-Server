@@ -1,6 +1,7 @@
 const config = require("../config");
 const axios = require("axios");
-const { insertMatchList, updateMatchList, getRecentMatches, getDuplicateMatches, updateMatch } = require("../dbs/riot/match");
+const { insertMatchList, updateMatchList, getRecentBasicMatches, getDuplicateMatches, updateMatch, getAllMatchesForMultipleAccounts } = require("../dbs/riot/match");
+const {getMultipleSummonersByName} = require("./summoner");
 const match = require("../dbs/riot/match");
 
 const getMatches = async (region, accountId) => {
@@ -72,7 +73,10 @@ const gethMatchDetails = async (region, gameId) => {
 }
 
 const enrichRecentMatches = async (req, res, next) => {
-  const matches = await getRecentMatches(req.summoner.region, req.summoner.accountId, 10);
+  const matches = await getRecentBasicMatches(req.summoner.region, req.summoner.accountId, 10);
+  if(matches.length === 0){
+    return next();
+  }
   await Promise.all(matches.map(async match => {
     let matchDetails = await gethMatchDetails(match.platformId, match.gameId);
     match = {
@@ -84,12 +88,60 @@ const enrichRecentMatches = async (req, res, next) => {
   return next();
 }
 
+const getOverlaps = async (region, summonerNames) => {
+  const summoners = await getMultipleSummonersByName(region, summonerNames);
+  const matches = await getAllMatchesForMultipleAccounts(region, summoners.map(summoner=> summoner.accountId));
+  matches.forEach(match => {
+      match.gameEnd = match.gameCreation + match.gameDuration*1000
+      match.date = new Date(match.gameCreation)
+    })
+  let overlaps = [];
+  //Go through matches and compare the current match to the next
+  for (let i = 1; i<matches.length-1; i++){
+    //Games are in descending orders. Most recent first.
+    //Current match SHOULD start after the previous match ended
+    if(matches[i].gameEnd > matches[i-1].gameCreation){
+      let matchA = {
+        gameId: matches[i].gameId,
+        date: matches[i].date,
+        duration: matches[i].gameDuration,
+      }
+      let matchB = {
+        gameId: matches[i-1].gameId,
+        date: matches[i-1].date,
+        duration: matches[i-1].gameDuration
+      }
+      overlaps.push([matchA, matchB])
+    }
+
+    if(matches[i].gameCreation < matches[i+1].gameCreation){
+      let matchA = {
+        gameId: matches[i].gameId,
+        date: matches[i].date,
+        duration: matches[i].gameDuration
+      }
+      let matchB = {
+        gameId: matches[i+1].gameId,
+        date: matches[i+1].date,
+        duration: matches[i+1].gameDuration
+      }
+      overlaps.push([matchA, matchB])
+    }
+  }
+  return overlaps;
+}
+
+const checkOverlaps = async (req, res) => {
+  const overlaps = await getOverlaps(req.query.region, req.query.summonerName);
+  return res.status(200).send(overlaps);
+}
+
 //5head indeed
-//t0p kingdom
 //TOP WAVE CONTROL
 //T0P KINGD0M
 //edaIB FT
 module.exports = {
   loadMatches,
-  enrichRecentMatches
+  enrichRecentMatches,
+  checkOverlaps
 };

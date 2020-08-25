@@ -53,7 +53,7 @@ const getDuplicateMatches = async (matchList, region) => {
   }
 };
 
-const getRecentMatches = async (region, accountId, count=10) => {
+const getRecentBasicMatches = async (region, accountId, count = 10) => {
   let db = await getDb();
   try {
     const query = {
@@ -61,13 +61,49 @@ const getRecentMatches = async (region, accountId, count=10) => {
       platformId: region,
       gameDuration: null,
     };
-    let recent10Matches = await db
+    let recentMatches = await db
       .collection("matches")
       .find(query)
       .sort({ timestamp: -1 })
       .limit(count)
       .toArray();
-    return recent10Matches;
+    return recentMatches;
+  } catch (err) {
+    throw err;
+  }
+};
+
+const getAllMatches = async (region, accountId) => {
+  let db = await getDb();
+  try {
+    const query = {
+      players: accountId,
+      platformId: region,
+    };
+    let allMatches = await db
+      .collection("matches")
+      .find(query)
+      .sort({ timestamp: -1 })
+      .toArray();
+    return allMatches;
+  } catch (err) {
+    throw err;
+  }
+};
+
+const getAllMatchesForMultipleAccounts = async (region, accountIds) => {
+  let db = await getDb();
+  try {
+    const query = {
+      players: {$in: accountIds},
+      platformId: region,
+    };
+    let allMatches = await db
+      .collection("matches")
+      .find(query)
+      .sort({ timestamp: -1 })
+      .toArray();
+    return allMatches;
   } catch (err) {
     throw err;
   }
@@ -78,5 +114,7 @@ module.exports = {
   getDuplicateMatches,
   updateMatchList,
   updateMatch,
-  getRecentMatches,
+  getRecentBasicMatches,
+  getAllMatches,
+  getAllMatchesForMultipleAccounts
 };
