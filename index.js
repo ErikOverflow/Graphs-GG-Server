@@ -11,5 +11,6 @@ v1.get('/player', summoner.summonerParser, (req,res) => res.status(200).json(req
 
 const match = require('./services/match');
 v1.get('/matches', summoner.summonerParser, match.loadMatches, (req,res) => res.status(200).json(req.summoner))
+v1.get('/enrichMatches', summoner.summonerParser, match.enrichRecentMatches, (req,res) => res.status(200).json(req.summoner))
 
 getDb().then(() => app.listen(process.env.PORT, () => console.log(`App is listening on port: ${process.env.PORT}`)));

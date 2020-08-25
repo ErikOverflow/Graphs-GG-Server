@@ -1,7 +1,6 @@
 const config = require("../config");
 const axios = require("axios");
-const matchDb = require("../dbs/riot/match");
-const { insertMatchList, updateMatchList } = require("../dbs/riot/match");
+const { insertMatchList, updateMatchList, getRecentMatches, getDuplicateMatches, updateMatch } = require("../dbs/riot/match");
 const match = require("../dbs/riot/match");
 
 const getMatches = async (region, accountId) => {
@@ -21,20 +20,20 @@ const getMatches = async (region, accountId) => {
           queue: match.queue,
           season: match.season,
           timestamp: match.timestamp,
-          participants: [accountId],
+          players: [accountId],
         };
       });
     } catch (err) {
       throw err;
     }
     //Prune them for duplicates
-    let duplicateMatches = await matchDb.getDuplicateMatches(matches, region);
+    let duplicateMatches = await getDuplicateMatches(matches, region);
     let updateMatches = [];
     let oldMatches = [];
-    if(duplicateMatches.length>0){
+    if(duplicateMatches && duplicateMatches.length>0){
         duplicateMatches.forEach((match) => {
-            if (!match.participants.includes(accountId)) {
-              match.participants.push(accountId);
+            if (!match.players.includes(accountId)) {
+              match.players.push(accountId);
               updateMatches.push(match);
             }
             oldMatches.push(match.gameId);
@@ -47,7 +46,7 @@ const getMatches = async (region, accountId) => {
       await insertMatchList(newMatches);
     }
     if(updateMatches.length > 0){
-        await updateMatchList(region, updateMatches);
+        await updateMatchList(updateMatches);
     }
     //Insert new matches into collection
     beginIndex += matches.length;
@@ -59,6 +58,38 @@ const loadMatches = async (req, res, next) => {
   return next();
 };
 
+const gethMatchDetails = async (region, gameId) => {
+  try {
+    let res = await axios.get(
+      config.matchDetailsUrl(region, gameId),
+      config.axiosOptions
+    );
+    return res.data;
+  }
+  catch(err) {
+    throw err;
+  }
+}
+
+const enrichRecentMatches = async (req, res, next) => {
+  const matches = await getRecentMatches(req.summoner.region, req.summoner.accountId, 10);
+  await Promise.all(matches.map(async match => {
+    let matchDetails = await gethMatchDetails(match.platformId, match.gameId);
+    match = {
+      ...match,
+      ...matchDetails
+    }
+    await updateMatch(match);
+  }));
+  return next();
+}
+
+//5head indeed
+//t0p kingdom
+//TOP WAVE CONTROL
+//T0P KINGD0M
+//edaIB FT
 module.exports = {
   loadMatches,
+  enrichRecentMatches
 };

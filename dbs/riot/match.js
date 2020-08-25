@@ -11,21 +11,26 @@ const insertMatchList = async (matchList) => {
   }
 };
 
-const updateMatchList = async (region, matchList) => {
+const updateMatchList = async (matchList) => {
+  let db = await getDb();
+  await Promise.all(
+    matchList.map((match) => {
+      updateMatch(match);
+    })
+  );
+};
+
+const updateMatch = async (match) => {
   let db = await getDb();
   try {
-    await Promise.all(matchList.map((match) => {
-      const query = {
-        gameId: match.gameId,
-        platformId: new RegExp(`^${region}$`, "i"),
-      };
-      const docUpdate = {
-        $set: match
-      };
-      return db
-        .collection("matches")
-        .updateOne(query, docUpdate);
-    }));
+    const query = {
+      gameId: match.gameId,
+      platformId: new RegExp(`^${match.platformId}$`, "i"),
+    };
+    const docUpdate = {
+      $set: match,
+    };
+    return db.collection("matches").updateOne(query, docUpdate);
   } catch (err) {
     throw err;
   }
@@ -48,8 +53,30 @@ const getDuplicateMatches = async (matchList, region) => {
   }
 };
 
+const getRecentMatches = async (region, accountId, count=10) => {
+  let db = await getDb();
+  try {
+    const query = {
+      players: accountId,
+      platformId: region,
+      gameDuration: null,
+    };
+    let recent10Matches = await db
+      .collection("matches")
+      .find(query)
+      .sort({ timestamp: -1 })
+      .limit(count)
+      .toArray();
+    return recent10Matches;
+  } catch (err) {
+    throw err;
+  }
+};
+
 module.exports = {
   insertMatchList,
   getDuplicateMatches,
-  updateMatchList
+  updateMatchList,
+  updateMatch,
+  getRecentMatches,
 };
