@@ -25,6 +25,7 @@
   },
   "homepage": "https://github.com/ErikOverflow/Graphs-GG-Server#readme",
   "dependencies": {
+    "@tensorflow/tfjs": "^2.3.0",
     "@tensorflow/tfjs-node": "^2.3.0",
     "axios": "^0.20.0",
     "dotenv": "^8.2.0",

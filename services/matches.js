@@ -1,148 +1,114 @@
+const getDb = require("../dbs/riot/client");
 const config = require("../config");
 const axios = require("axios");
-const getDb = require("../dbs/riot/client");
 
-const axiosOptions = {
-  headers: {
-    "X-Riot-Token": process.env.RIOTKEY,
-  },
-};
-
-//endTime is the time the latest match started
-const getMatchesByAccountId = async (
-  region,
-  accountId,
-  beginIndex = 0
-) => {
-  const db = await getDb();
-
-  //Find if the player has already been queried within the past 30 minutes
-  let lastMatchQueryDoc;
+//Get list of matches for Account ID. Params: AccountID, Region
+//If no matches can be found, or the last match lookup for this account is over <stalenessThreshold> hours old, fetch from Riot
+const matchListByAccountId = async (accountId, region) => {
+  let db = await getDb();
+  /*fetch matches from DB*/
+  //Check DB first. If there are matches in the DB, return those.
+  let matchList;
   try {
-    const halfHourAgo = new Date();
-    halfHourAgo.setMinutes(halfHourAgo.getMinutes() - 30);
     const query = {
-      accountId: accountId,
-      region: new RegExp(`^${region}$`, "i"),
-      lastMatchQuery: { $gte: halfHourAgo },
-    };
-    const findOptions = { projection: { _id: 0 } };
-    lastMatchQueryDoc = await db
-      .collection("matchqueries")
-      .findOne(query, findOptions);
-  } catch (err) {
-    throw err;
-  }
-
-  //Get the last X matches if they haven't queried in the past 30 minutes
-  //If there was a query in the last 30 minutes, STOP
-  if (lastMatchQueryDoc) {
-    return;
-  }
-  let lastMatches;
-  try {
-      console.log(config.matchHistoryUrl(region, accountId, beginIndex));
-    let res = await axios.get(
-      config.matchHistoryUrl(region, accountId, endTime),
-      axiosOptions
-    );
-    const query = {
-      accountId: accountId,
+      accountId,
       region: new RegExp(`^${region}$`, "i"),
     };
-    const docUpdate = {
-      $set: { accountId, region },
-      $currentDate: { lastMatchQuery: true },
-    };
-    const updateOptions = { upsert: true };
-    lastMatches = res.data.matches;
-    await db
-      .collection("matchqueries")
-      .updateOne(query, docUpdate, updateOptions);
-  } catch (err) {
-    throw err;
-  }
-
-  //Check the database for any of those matches already being there
-  let newMatches;
-  try {
-    const query = {
-      gameId: { $in: lastMatches.map((match) => match.gameId) },
-      region,
-    };
-    const findOptions = { projection: { _id: 0, gameId: 1 } };
-    let matchesAlreadyLoaded = await db
-      .collection("matches")
-      .find(query, findOptions);
-    if (matchesAlreadyLoaded) {
-      let matchIdAlreadyLoaded = [];
-      await matchesAlreadyLoaded.forEach((match) => {
-        matchIdAlreadyLoaded.push(match.gameId);
-      });
-      newMatches = lastMatches.filter((match) => {
-        //Check to make sure the last 100 matches don't include any that are already loaded.
-        return !matchIdAlreadyLoaded.includes(match.gameId);
-      });
-    } else {
-      newMatches = lastMatches;
+    matchList = await db.collection("matchlists").findOne(query);
+    const staleDate = new Date();
+    staleDate.setHours(staleDate.getHours() - config.stalenessThreshold);
+    if (
+      matchList &&
+      matchList.matches.length > 0 &&
+      matchList.lastLookup > staleDate
+    ) {
+      return matchList;
     }
   } catch (err) {
+    console.error("Unable to get matches from DB");
     throw err;
-  }
-  if (newMatches.length === 0) {
-    return;
   }
 
-  //Fetch extra detail about each match
-  await Promise.all(
-    newMatches.map(async (match) => {
-      try {
-        let res = await axios.get(
-          config.matchDetailsUrl(region, match.gameId),
-          axiosOptions
-        );
-        match.region = region;
-        match.participants = res.data.participants;
-        match.participantIdentities = res.data.participantIdentities;
-        match.participantAccountIds = res.data.participantIdentities.map(
-          (participant) => participant.player.accountId
-        );
-      } catch (err) {
-        throw err;
-      }
-      return Promise.resolve("OK");
-    })
+  /*fetch matches from Riot and add to DB*/
+  //There were no matches found, or the data was stale.
+  let beginIndex = 0;
+  //Create new matchList object if needed
+  if (!matchList) {
+    matchList = {
+      accountId,
+      region,
+      matches: [],
+    };
+  }
+  matchList.lastLookup = new Date();
+  let totalGames;
+  let uniqueMatches;
+  const storedGameIds = matchList.matches.map((match) => match.gameId);
+  do {
+    let matchesFound;
+    try {
+      let res = await axios.get(
+        config.matchListUrl(region, accountId, beginIndex),
+        config.axiosOptions
+      );
+      totalGames = res.data.totalGames;
+      matchesFound = res.data.matches.length;
+      uniqueMatches = res.data.matches.filter(
+        (match) => !storedGameIds.includes(match.gameId)
+      );
+      //Only append unique matches to the matchList object
+      matchList.matches.push(...uniqueMatches);
+    } catch (err) {
+      console.error("Unable to fetch match list from Riot");
+      throw err;
+    }
+    beginIndex += matchesFound;
+    //Continue the while loop when there are more matches to be loaded, and there were unique matches loaded in the previous loop
+  } while (beginIndex < totalGames && uniqueMatches.length > 0);
+  matchList.matches.sort(
+    (matchA, matchB) => matchA.timestamp - matchB.timestamp
   );
+  //Upsert the matchList to the DB
   try {
-    await db.collection("matches").insertMany(newMatches);
+    const query = {
+      accountId,
+      region: new RegExp(`^${region}$`, "i"),
+    };
+    const updateDoc = {
+      $set: matchList,
+    };
+    const updateOptions = {
+      upsert: true,
+    };
+    await db
+      .collection("matchlists")
+      .updateOne(query, updateDoc, updateOptions);
   } catch (err) {
+    console.error("Unable to upsert match list to DB");
     throw err;
   }
+  return matchList;
 };
 
-const updateRecentMatches = async (req, res, next) => {
-  await getMatchesByAccountId(req.summoner.region, req.summoner.accountId, 0);
+//(req,res) with req.summoner.account and req.query.region
+//Should be run after loadSummoner middleware
+const loadMatchList = async (req, res, next) => {
+  if (!req.summoner || !req.summoner.accountId) {
+    return res.status(400).send("Missing summoner reference");
+  }
+  if (!req.query.region) {
+    return res.status(400).send("Missing region");
+  }
+  const accountId = req.summoner.accountId;
+  const region = req.query.region;
+
+  req.matchList = await matchListByAccountId(accountId, region);
   return next();
 };
 
-const getOlderMatchesByAccountId = async (region, accountId) => {
-  const db = await getDb();
-  try {
-    const query = {
-      participantAccountIds: accountId,
-      region: new RegExp(`^${region}$`, "i"),
-    };
-    const findOptions = { projection: { _id: 0}, sort: {timestamp: 1}};
-    let oldestMatch = await db
-      .collection("matches")
-      .findOne(query, findOptions);
-    await getMatchesByAccountId(region, accountId, oldestMatch.timestamp);
-  } catch (err) {
-    throw err;
-  }
-};
-getOlderMatchesByAccountId("NA1", "PqT1tpGQnIHGaY4Fhdoj_FefYiUI4mYMPzMHBazH7tI80hI");
+//Get match details for match Id
+//Match Id should be on req.match.Id
 
 module.exports = {
-  updateRecentMatches,
+  loadMatchList,
 };

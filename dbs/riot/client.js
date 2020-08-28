@@ -4,10 +4,10 @@ let db;
 const getDb = async () => {
   if (!db) {
     try {
-      const client = await MongoClient.connect("mongodb://localhost:27017/", {
+      const client = await MongoClient.connect(process.env.MONGOURI, {
         useUnifiedTopology: true,
       });
-      db = client.db("riot");
+      db = client.db(process.env.MONGODB);
     } catch (err) {
       throw err;
     }
