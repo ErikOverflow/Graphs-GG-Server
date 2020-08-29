@@ -106,9 +106,62 @@ const loadMatchList = async (req, res, next) => {
   return next();
 };
 
+const matchDetail = async (gameId, region) => {
+  let db = await getDb();
+  //Get summoner data from db
+  let matchDetailDoc;
+  try{
+      const query = {
+          gameId: gameId,
+          platformId: new RegExp(`^${region}$`, "i"),
+      }
+      matchDetailDoc = await db.collection("matchdetails").findOne(query);
+      if(matchDetailDoc)
+      {
+          return matchDetailDoc;
+      }
+  } catch(err) {
+      console.error("Unable to get timeline data from DB");
+      throw err;
+  }
+
+  /*Document needs to be updated with data from Riot*/
+  //Fetch data from Riot
+  let res
+  try{
+  res = await axios.get(config.matchDetailsUrl(region, gameId), config.axiosOptions);
+  } catch(err) {
+      console.log("Unable to get timeline data from Riot");
+      throw err;
+  }
+  matchDetailDoc = res.data;
+
+  //Update doc in DB
+  try {
+      const query = {
+          gameId: gameId,
+          platformId: new RegExp(`^${region}$`, "i"),
+        };
+        const updateDoc = {
+          $set: matchDetailDoc,
+        };
+        const updateOptions = {
+          upsert: true,
+        };
+        await db
+          .collection("matchdetails")
+          .updateOne(query, updateDoc, updateOptions);
+  } catch(err) {
+      console.error("Unable to upsert timeline doc in DB");
+      throw err;
+  }
+  return matchDetailDoc;
+}
+
 //Get match details for match Id
 //Match Id should be on req.match.Id
 
 module.exports = {
   loadMatchList,
+  matchDetail
 };

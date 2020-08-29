@@ -1,40 +1,60 @@
+const getDb = require("../dbs/riot/client");
 const config = require("../config");
 const axios = require("axios");
-const { findOneTimeline, insertTimeline } = require("../dbs/riot/timelines");
 
-const getTimeline = async (req, res, next) => {
-    const region = req.query.region;
-    const gameId = req.query.gameId;
-    if(!region || !gameId){
-        return res.status(403).send("Missing region or game ID");
+const timelineByGameId = async (gameId, platformId) =>{
+    let db = await getDb();
+    //Get summoner data from db
+    let timelineDoc;
+    try{
+        const query = {
+            gameId: gameId,
+            platformId: new RegExp(`^${platformId}$`, "i"),
+        }
+        timelineDoc = await db.collection("timelines").findOne(query);
+        if(timelineDoc)
+        {
+            return timelineDoc;
+        }
+    } catch(err) {
+        console.error("Unable to get timeline data from DB");
+        throw err;
     }
-  try {
-    req.timelineData = await findOneTimeline(region, gameId);
-    if (req.timelineData) {
-      return next();
-    }
-    let riotRes = await axios.get(
-      config.timelineUrl(region, gameId),
-      config.axiosOptions
-    );
-    timelineDoc = riotRes.data;
-    await insertTimeline(region, gameId, timelineDoc);
-    req.timelineData = timelineDoc;
-    return next();
-  } catch (err) {
-    throw err;
-  }
-};
 
-const getIndicativeTimelineData = (req, res) => {
-    
-    for (const frame of req.timelineData.frames){
-        
+    /*Document needs to be updated with data from Riot*/
+    //Fetch data from Riot
+    let res
+    try{
+    res = await axios.get(config.timelineUrl(platformId,gameId), config.axiosOptions);
+    } catch(err) {
+        console.log("Unable to get timeline data from Riot");
+        throw err;
     }
-    return res.status(200).send("Good");
+    timelineDoc = res.data;
+    timelineDoc.platformId = platformId;
+
+    //Update doc in DB
+    try {
+        const query = {
+            gameId: gameId,
+            platformId: new RegExp(`^${platformId}$`, "i"),
+          };
+          const updateDoc = {
+            $set: timelineDoc,
+          };
+          const updateOptions = {
+            upsert: true,
+          };
+          await db
+            .collection("timelines")
+            .updateOne(query, updateDoc, updateOptions);
+    } catch(err) {
+        console.error("Unable to upsert timeline doc in DB");
+        throw err;
+    }
+    return timelineDoc;
 }
 
 module.exports = {
-    getTimeline,
-    getIndicativeTimelineData
+    timelineByGameId
 }
