@@ -12,12 +12,12 @@ app.use("/api/v1", v1);
 
 const { loadMatchList } = require("./services/matches");
 const {loadSummoner} = require("./services/summoners");
-const {analyze} = require("./services/analyze");
+const {breakbreakdown} = require("./services/analyze");
 v1.get("/matchList", loadSummoner, loadMatchList, (req, res) =>
   res.status(200).json(req.matchList)
 );
 
-v1.post("/analyze", analyze)
+v1.post("/matchBreakdown", breakdown)
 
 //_eUPZiyUA-5o60uLguiCO09fftG65AVktg9zsPIRY-Q
 getDb().then(() =>
