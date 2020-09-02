@@ -8,7 +8,7 @@ const timelineByGameId = async (gameId, platformId) =>{
     let timelineDoc;
     try{
         const query = {
-            gameId: gameId,
+            gameId: Number(gameId),
             platformId: new RegExp(`^${platformId}$`, "i"),
         }
         timelineDoc = await db.collection("timelines").findOne(query);
@@ -25,7 +25,7 @@ const timelineByGameId = async (gameId, platformId) =>{
     //Fetch data from Riot
     let res
     try{
-    res = await axios.get(config.timelineUrl(platformId,gameId), config.axiosOptions);
+    res = await axios.get(config.timelineUrl(platformId, gameId), config.axiosOptions);
     } catch(err) {
         console.log("Unable to get timeline data from Riot");
         throw err;
@@ -36,7 +36,7 @@ const timelineByGameId = async (gameId, platformId) =>{
     //Update doc in DB
     try {
         const query = {
-            gameId: gameId,
+            gameId: Number(gameId),
             platformId: new RegExp(`^${platformId}$`, "i"),
           };
           const updateDoc = {

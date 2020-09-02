@@ -112,7 +112,7 @@ const matchDetail = async (gameId, region) => {
   let matchDetailDoc;
   try{
       const query = {
-          gameId: gameId,
+          gameId: Number(gameId),
           platformId: new RegExp(`^${region}$`, "i"),
       }
       matchDetailDoc = await db.collection("matchdetails").findOne(query);
@@ -121,7 +121,7 @@ const matchDetail = async (gameId, region) => {
           return matchDetailDoc;
       }
   } catch(err) {
-      console.error("Unable to get timeline data from DB");
+      console.error("Unable to get matchDetail data from DB");
       throw err;
   }
 
@@ -131,7 +131,7 @@ const matchDetail = async (gameId, region) => {
   try{
   res = await axios.get(config.matchDetailsUrl(region, gameId), config.axiosOptions);
   } catch(err) {
-      console.log("Unable to get timeline data from Riot");
+      console.log("Unable to get matchDetail data from Riot");
       throw err;
   }
   matchDetailDoc = res.data;
@@ -139,7 +139,7 @@ const matchDetail = async (gameId, region) => {
   //Update doc in DB
   try {
       const query = {
-          gameId: gameId,
+          gameId: Number(gameId),
           platformId: new RegExp(`^${region}$`, "i"),
         };
         const updateDoc = {
@@ -152,7 +152,7 @@ const matchDetail = async (gameId, region) => {
           .collection("matchdetails")
           .updateOne(query, updateDoc, updateOptions);
   } catch(err) {
-      console.error("Unable to upsert timeline doc in DB");
+      console.error("Unable to upsert matchDetail doc in DB");
       throw err;
   }
   return matchDetailDoc;
