@@ -14,12 +14,10 @@ const v1 = express.Router();
 app.use("/api/v1", v1);
 
 
-const { loadMatchList } = require("./services/matches");
+const { loadMatchList, getMatchHistory } = require("./services/matches");
 const {loadSummoner} = require("./services/summoners");
 const {breakdown} = require("./services/analyze");
-v1.get("/matchList", loadSummoner, loadMatchList, (req, res) =>
-  res.status(200).json(req.matchList)
-);
+v1.get("/matchHistory", loadSummoner, loadMatchList, getMatchHistory);
 
 v1.get("/matchBreakdown", breakdown)
 

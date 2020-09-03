@@ -1,9 +1,10 @@
 const getDb = require("../dbs/riot/client");
 const config = require("../config");
 const axios = require("axios");
+const { response } = require("express");
 
 //Get list of matches for Account ID. Params: AccountID, Region
-//If no matches can be found, or the last match lookup for this account is over <stalenessThreshold> hours old, fetch from Riot
+//If no matches can be found, or the last match lookup for this account is over <stalenessThreshold> minutes old, fetch from Riot
 const matchListByAccountId = async (accountId, region) => {
   let db = await getDb();
   /*fetch matches from DB*/
@@ -16,7 +17,7 @@ const matchListByAccountId = async (accountId, region) => {
     };
     matchList = await db.collection("matchlists").findOne(query);
     const staleDate = new Date();
-    staleDate.setHours(staleDate.getHours() - config.stalenessThreshold);
+    staleDate.setMinutes(staleDate.getMinutes() - config.stalenessThreshold);
     if (
       matchList &&
       matchList.matches.length > 0 &&
@@ -66,7 +67,7 @@ const matchListByAccountId = async (accountId, region) => {
     //Continue the while loop when there are more matches to be loaded, and there were unique matches loaded in the previous loop
   } while (beginIndex < totalGames && uniqueMatches.length > 0);
   matchList.matches.sort(
-    (matchA, matchB) => matchA.timestamp - matchB.timestamp
+    (matchA, matchB) => matchB.timestamp - matchA.timestamp
   );
   //Upsert the matchList to the DB
   try {
@@ -90,8 +91,7 @@ const matchListByAccountId = async (accountId, region) => {
   return matchList;
 };
 
-//(req,res) with req.summoner.account and req.query.region
-//Should be run after loadSummoner middleware
+//Run this to update the matchList
 const loadMatchList = async (req, res, next) => {
   if (!req.summoner || !req.summoner.accountId) {
     return res.status(400).send("Missing summoner reference");
@@ -108,7 +108,7 @@ const loadMatchList = async (req, res, next) => {
 
 const matchDetail = async (gameId, region) => {
   let db = await getDb();
-  //Get summoner data from db
+  //Get match data from db
   let matchDetailDoc;
   try{
       const query = {
@@ -158,10 +158,31 @@ const matchDetail = async (gameId, region) => {
   return matchDetailDoc;
 }
 
+//Load the match histories from the matchList attached to the request
+const sliceMatchHistory = async (matchList, start = 0, end = 10) => {
+  let matches = matchList.matches.slice(start, end);
+  let matchDetails = [];
+  await Promise.all(matches.map(async (match)=>{
+    matchDetails.push(await matchDetail(match.gameId, match.platformId));
+  }))
+
+  matchDetails.sort(
+    (matchA, matchB) => matchB.gameCreation - matchA.gameCreation
+  );
+
+  return matchDetails;
+}
+
+const getMatchHistory = async (req,res) => {
+  let matchHistory = await sliceMatchHistory(req.matchList, req.query.start, req.query.end);
+  return res.status(200).json(matchHistory);
+
+}
+
 //Get match details for match Id
 //Match Id should be on req.match.Id
 
 module.exports = {
   loadMatchList,
-  matchDetail
+  getMatchHistory
 };

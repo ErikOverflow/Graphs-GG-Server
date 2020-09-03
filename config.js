@@ -15,7 +15,7 @@ const axiosOptions = {
   },
 };
 
-const stalenessThreshold = 24;
+const stalenessThreshold = 5;
 
 module.exports = {
   summonerByNameUrl,
