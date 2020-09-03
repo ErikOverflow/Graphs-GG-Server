@@ -17,8 +17,9 @@ app.use("/api/v1", v1);
 const { loadMatchList, getMatchHistory } = require("./services/matches");
 const {loadSummoner} = require("./services/summoners");
 const {breakdown} = require("./services/analyze");
+//region=NA1&summonerName=I have cute dogs&start=0&end=9
 v1.get("/matchHistory", loadSummoner, loadMatchList, getMatchHistory);
-
+//region=NA1&gameId=3527153822
 v1.get("/matchBreakdown", breakdown)
 
 //_eUPZiyUA-5o60uLguiCO09fftG65AVktg9zsPIRY-Q

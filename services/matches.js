@@ -184,5 +184,6 @@ const getMatchHistory = async (req,res) => {
 
 module.exports = {
   loadMatchList,
-  getMatchHistory
+  getMatchHistory,
+  matchDetail
 };
