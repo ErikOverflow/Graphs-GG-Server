@@ -5,8 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node index.local.js",
-    "stop": "kill $$"
+    "start": "node lambdja.js"
   },
   "repository": {
     "type": "git",
