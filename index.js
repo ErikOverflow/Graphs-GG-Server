@@ -6,7 +6,7 @@ const helmet = require("helmet");
 
 const cors = require('cors');
 const corsOptions = {
-  origin: 'https://www.graphs.gg',
+  origin: ['https://www.graphs.gg', /\.graphs\.gg$/, 'http://localhost:3000'],
   optionsSuccessStatus: 200
 }
 app.use(cors(corsOptions));
