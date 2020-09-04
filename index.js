@@ -26,13 +26,8 @@ v1.get("/matchHistory", loadSummoner, loadMatchList, getMatchHistory);
 v1.get("/matchBreakdown", breakdown)
 v1.get("/ping", (req, res) => res.send("Pinged"));
 
-//_eUPZiyUA-5o60uLguiCO09fftG65AVktg9zsPIRY-Q
-// getDb().then(() =>
-//   app.listen(process.env.PORT, () =>
-//     console.log(`App is listening on port: ${process.env.PORT}`)
-//   )
-// );
-
-app.listen(process.env.PORT, () =>
-  console.log(`App is listening on port: ${process.env.PORT}`)
-)
+getDb().then(() =>
+  app.listen(process.env.PORT, () =>
+    console.log(`App is listening on port: ${process.env.PORT}`)
+  )
+);
