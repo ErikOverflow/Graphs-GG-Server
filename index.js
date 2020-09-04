@@ -4,6 +4,12 @@ const dotenv = require("dotenv");
 const bodyParser = require("body-parser");
 const helmet = require("helmet");
 
+const cors = require('cors');
+const corsOptions = {
+  origin: 'https://www.graphs.gg',
+  optionsSuccessStatus: 200
+}
+app.use(cors(corsOptions));
 //app.use(helmet);
 
 app.use(bodyParser.urlencoded({ extended: true }));
