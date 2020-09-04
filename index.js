@@ -4,9 +4,6 @@ const dotenv = require("dotenv");
 const bodyParser = require("body-parser");
 const helmet = require("helmet");
 
-const cors = require('cors');
-app.use(cors());
-
 //app.use(helmet);
 
 app.use(bodyParser.urlencoded({ extended: true }));
