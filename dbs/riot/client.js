@@ -4,7 +4,7 @@ let db;
 const getDb = async () => {
   if (!db) {
     try {
-      const client = await MongoClient.connect(process.env.MONGOURI, {
+      const client = await MongoClient.connect(encodeURI(process.env.MONGOURI), {
         useUnifiedTopology: true,
       });
       db = client.db(process.env.MONGODB);
