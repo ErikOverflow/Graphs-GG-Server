@@ -31,8 +31,6 @@ v1.get("/ping", (req, res) => res.send("Pinged"));
 
 getDb();
 
-module.exports = app;
-
-// app.listen(process.env.PORT, () =>
-//     console.log(`App is listening on port: ${process.env.PORT}`)
-// );
+app.listen(process.env.PORT, () =>
+    console.log(`App is listening on port: ${process.env.PORT}`)
+);
