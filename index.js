@@ -29,8 +29,10 @@ v1.get("/matchHistory", loadSummoner, loadMatchList, getMatchHistory);
 v1.get("/matchBreakdown", breakdown)
 v1.get("/ping", (req, res) => res.send("Pinged"));
 
-getDb().then(() =>
-  app.listen(process.env.PORT, () =>
-    console.log(`App is listening on port: ${process.env.PORT}`)
-  )
-);
+getDb();
+
+module.exports = app;
+
+// app.listen(process.env.PORT, () =>
+//     console.log(`App is listening on port: ${process.env.PORT}`)
+// );
