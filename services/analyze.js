@@ -1,5 +1,6 @@
 const { timelineByGameId } = require("./timelines");
 const { matchDetail } = require("./matches");
+const {getChampionByKey, getSummonerSpellByKey}= require('./dataDragon');
 const breakdown = async (req, res) => {
   const gameId = req.query.gameId;
   const region = req.query.region;
@@ -16,10 +17,17 @@ const breakdown = async (req, res) => {
   for(const participant of detailsDoc.participants){
     //TODO: Look up champion ID and give champion name and PNG link instead
     participants[participant.participantId].championId = participant.championId;
+    const champion = await getChampionByKey(participant.championId);
+    participants[participant.participantId].championName = champion.name;
+    participants[participant.participantId].championImg = `${process.env.CDN}/img/champion/${champion.image.full}`;
     participants[participant.participantId].teamId = participant.teamId;
     //TODO: Look up spell IDs and give spell name and PNG link instead
-    participants[participant.participantId].spell1Id = participant.spell1Id;
-    participants[participant.participantId].spell2Id = participant.spell2Id;
+    const spell1 = await getSummonerSpellByKey(participant.spell1Id);
+    const spell2 = await getSummonerSpellByKey(participant.spell2Id);
+    participants[participant.participantId].spell1Name = spell1.name;
+    participants[participant.participantId].spell2Name = spell2.name;
+    participants[participant.participantId].spell1Img = `${process.env.CDN}/img/spell/${spell1.image.full}`;
+    participants[participant.participantId].spell2Img = `${process.env.CDN}/img/spell/${spell2.image.full}`;
     participants[participant.participantId].statHistory = [];
   }
 
