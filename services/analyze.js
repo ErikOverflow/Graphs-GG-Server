@@ -30,13 +30,12 @@ const breakdown = async (req, res) => {
     participants[participant.participantId].spell2Img = `${process.env.CDN}/img/spell/${spell2.image.full}`;
     participants[participant.participantId].statHistory = [];
   }
-
   let timelineDoc = await timelineByGameId(gameId, region);
   //Breakdown frames
   const killEvents = [];
   for (const frame of timelineDoc.frames){
-    for (const [id, pFrame] of Object.entries(frame.participantFrames)){
-      participants[id].statHistory.push({
+    for (const pFrame of Object.values(frame.participantFrames)){
+      participants[pFrame.participantId].statHistory.push({
         totalGold: pFrame.totalGold,
         currentGold: pFrame.currentGold,
         level: pFrame.level,
