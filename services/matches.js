@@ -2,6 +2,7 @@ const getDb = require("../dbs/riot/client");
 const config = require("../config");
 const axios = require("axios");
 const { response } = require("express");
+const { getQueueById } = require("./dataDragon");
 
 //Get list of matches for Account ID. Params: AccountID, Region
 //If no matches can be found, or the last match lookup for this account is over <stalenessThreshold> minutes old, fetch from Riot
@@ -163,7 +164,11 @@ const sliceMatchHistory = async (matchList, start = 0, end = 10) => {
   let matches = matchList.matches.slice(start, end);
   let matchDetails = [];
   await Promise.all(matches.map(async (match)=>{
-    matchDetails.push(await matchDetail(match.gameId, match.platformId));
+    const detail = await matchDetail(match.gameId, match.platformId);
+    const queue = await getQueueById(detail.queueId);
+    detail.queueName = queue.description.split("games")[0];
+    detail.mapName = queue.map;
+    matchDetails.push(detail);
   }))
 
   matchDetails.sort(
@@ -174,7 +179,7 @@ const sliceMatchHistory = async (matchList, start = 0, end = 10) => {
 }
 
 const getMatchHistory = async (req,res) => {
-  let matchHistory = await sliceMatchHistory(req.matchList, req.query.start, req.query.end);
+  let matchHistory = await sliceMatchHistory(req.matchList, req.query.start, req.query.end);  
   return res.status(200).json(matchHistory);
 
 }

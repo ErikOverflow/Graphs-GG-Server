@@ -55,7 +55,7 @@ const getLatestSummonerSpellJson = async (language = "en_US") => {
 }
 
 const getLatestQueueJson = async () => {
-    if(queuesJson){
+    if(Object.keys(queuesJson).length > 0){
         return queuesJson;
     }
     let res;
@@ -63,6 +63,9 @@ const getLatestQueueJson = async () => {
         res = await axios.get(`${process.env.CDN}/queues.json`);
     } catch (err){
         console.error("Unable to get champion JSON");
+    }
+    for (const queue of res.data){
+        queuesJson[queue.queueId] = queue;
     }
 }
 
@@ -76,6 +79,11 @@ const getSummonerSpellByKey = async (key, language = "en_US") => {
     return spellByKeyJson[key];
 }
 
+const getQueueById = async(id) => {
+    const queueJson = await getLatestQueueJson();
+    return queueJson[id];
+}
+
 getLatestChampionJson();
 getLatestItemJson();
 getLatestQueueJson();
@@ -83,5 +91,6 @@ getLatestSummonerSpellJson();
 
 module.exports = {
     getChampionByKey,
-    getSummonerSpellByKey
+    getSummonerSpellByKey,
+    getQueueById
 }
